@@ -1,0 +1,22 @@
+{
+  "author": "KOBA789 <kobahide789@gmail.com> (http://koba789.com/)",
+  "name": "liveterm-server",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/KOBA789/src.git"
+  },
+  "dependencies": {
+    "pty.js": "*",
+    "router-line": "*",
+    "socket.io": "*"
+  },
+  "devDependencies": {
+    "should": "*",
+    "mocha": "*"
+  },
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
