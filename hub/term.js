@@ -56,7 +56,6 @@
     this.cursorHidden = false;
     this.convertEol = false;
     this.state = 0;
-    this.outputQueue = '';
     this.scrollTop = 0;
     this.scrollBottom = this.rows - 1;
 
@@ -137,310 +136,13 @@
   };
 
   /**
-   * Global Events for key handling
-   */
-
-  Terminal.bindKeys = function() {
-    if (Terminal.focus) return;
-
-    // We could put an "if (Term.focus)" check
-    // here, but it shouldn't be necessary.
-    on(document, 'keydown', function(key) {
-      return Terminal.focus.keyDownHandler(key);
-    }, true);
-
-    on(document, 'keypress', function(key) {
-      return Terminal.focus.keyPressHandler(key);
-    }, true);
-  };
-
-  /**
    * Open Terminal
    */
 
   Terminal.prototype.open = function() {
-    var self = this
-    , i = 0
-    , div;
-
-    this.element = document.createElement('div');
-    this.element.className = 'terminal';
-    this.children = [];
-
-    for (; i < this.rows; i++) {
-      div = document.createElement('div');
-      this.element.appendChild(div);
-      this.children.push(div);
-    }
-
-    document.body.appendChild(this.element);
-
     this.refresh(0, this.rows - 1);
 
-    Terminal.bindKeys();
     this.focus();
-
-    this.startBlink();
-
-    on(this.element, 'mousedown', function() {
-      self.focus();
-    });
-
-    // This probably shouldn't work,
-    // ... but it does. Firefox's paste
-    // event seems to only work for textareas?
-    on(this.element, 'mousedown', function(ev) {
-      var button = ev.button != null
-            ? +ev.button
-            : ev.which != null
-            ? ev.which - 1
-            : null;
-
-      // Does IE9 do this?
-      if (~navigator.userAgent.indexOf('MSIE')) {
-        button = button === 1 ? 0 : button === 4 ? 1 : button;
-      }
-
-      if (button !== 2) return;
-
-      self.element.contentEditable = 'true';
-      setTimeout(function() {
-        self.element.contentEditable = 'inherit'; // 'false';
-      }, 1);
-    }, true);
-
-    on(this.element, 'paste', function(ev) {
-      if (ev.clipboardData) {
-        self.queueChars(ev.clipboardData.getData('text/plain'));
-      } else if (window.clipboardData) {
-        self.queueChars(window.clipboardData.getData('Text'));
-      }
-      // Not necessary. Do it anyway for good measure.
-      self.element.contentEditable = 'inherit';
-      return cancel(ev);
-    });
-
-    this.bindMouse();
-
-    // XXX - hack, move this somewhere else.
-    if (Terminal.brokenBold == null) {
-      Terminal.brokenBold = isBoldBroken();
-    }
-
-    // sync default bg/fg colors
-    this.element.style.backgroundColor = Terminal.colors[16];
-    this.element.style.color = Terminal.colors[17];
-
-    // otherwise:
-    // Terminal.colors[16] = css(this.element, 'background-color');
-    // Terminal.colors[17] = css(this.element, 'color');
-  };
-  
-  // XTerm mouse events
-  // http://invisible-island.net/xterm/ctlseqs/ctlseqs.html#Mouse%20Tracking
-  // To better understand these
-  // the xterm code is very helpful:
-  // Relevant files:
-  //   button.c, charproc.c, misc.c
-  // Relevant functions in xterm/button.c:
-  //   BtnCode, EmitButtonCode, EditorButton, SendMousePosition
-  Terminal.prototype.bindMouse = function() {
-    var el = this.element
-    , self = this
-    , pressed = 32;
-
-    var wheelEvent = 'onmousewheel' in window
-          ? 'mousewheel'
-          : 'DOMMouseScroll';
-
-    // mouseup, mousedown, mousewheel
-    // left click: ^[[M 3<^[[M#3<
-    // mousewheel up: ^[[M`3>
-    function sendButton(ev) {
-      var button
-      , pos;
-
-      // get the xterm-style button
-      button = getButton(ev);
-
-      // get mouse coordinates
-      pos = getCoords(ev);
-      if (!pos) return;
-
-      sendEvent(button, pos);
-
-      switch (ev.type) {
-      case 'mousedown':
-        pressed = button;
-        break;
-      case 'mouseup':
-        // keep it at the left
-        // button, just in case.
-        pressed = 32;
-        break;
-      case wheelEvent:
-        // nothing. don't
-        // interfere with
-        // `pressed`.
-        break;
-      }
-    }
-
-    // motion example of a left click:
-    // ^[[M 3<^[[M@4<^[[M@5<^[[M@6<^[[M@7<^[[M#7<
-    function sendMove(ev) {
-      var button = pressed
-      , pos;
-
-      pos = getCoords(ev);
-      if (!pos) return;
-
-      // buttons marked as motions
-      // are incremented by 32
-      button += 32;
-
-      sendEvent(button, pos);
-    }
-
-    // send a mouse event:
-    // ^[[M Cb Cx Cy
-    function sendEvent(button, pos) {
-      self.queueChars('\x1b[M' + String.fromCharCode(button, pos.x, pos.y));
-    }
-
-    function getButton(ev) {
-      var button
-      , shift
-      , meta
-      , ctrl
-      , mod;
-
-      // two low bits:
-      // 0 = left
-      // 1 = middle
-      // 2 = right
-      // 3 = release
-      // wheel up/down:
-      // 1, and 2 - with 64 added
-      switch (ev.type) {
-      case 'mousedown':
-        button = ev.button != null
-          ? +ev.button
-          : ev.which != null
-          ? ev.which - 1
-          : null;
-
-        if (~navigator.userAgent.indexOf('MSIE')) {
-          button = button === 1 ? 0 : button === 4 ? 1 : button;
-        }
-        break;
-      case 'mouseup':
-        button = 3;
-        break;
-      case 'DOMMouseScroll':
-        button = ev.detail < 0
-          ? 64
-          : 65;
-        break;
-      case 'mousewheel':
-        button = ev.wheelDeltaY > 0
-          ? 64
-          : 65;
-        break;
-      }
-
-      // next three bits are the modifiers:
-      // 4 = shift, 8 = meta, 16 = control
-      shift = ev.shiftKey ? 4 : 0;
-      meta = ev.metaKey ? 8 : 0;
-      ctrl = ev.ctrlKey ? 16 : 0;
-      mod = shift | meta | ctrl;
-
-      // increment to SP
-      button = (32 + (mod << 2)) + button;
-
-      return button;
-    }
-
-    // mouse coordinates measured in cols/rows
-    function getCoords(ev) {
-      var x, y, w, h, el;
-
-      // ignore browsers without pageX for now
-      if (ev.pageX == null) return;
-
-      x = ev.pageX;
-      y = ev.pageY;
-      el = self.element;
-
-      // should probably check offsetParent
-      // but this is more portable
-      while (el !== document.documentElement) {
-        x -= el.offsetLeft;
-        y -= el.offsetTop;
-        el = el.parentNode;
-      }
-
-      // convert to cols/rows
-      w = self.element.clientWidth;
-      h = self.element.clientHeight;
-      x = ((x / w) * self.cols) | 0;
-      y = ((y / h) * self.rows) | 0;
-
-      // be sure to avoid sending
-      // bad positions to the program
-      if (x < 0) x = 0;
-      if (x > self.cols) x = self.cols;
-      if (y < 0) y = 0;
-      if (y > self.rows) y = self.rows;
-
-      // xterm sends raw bytes and
-      // starts at 32 (SP) for each.
-      x += 32;
-      y += 32;
-
-      return { x: x, y: y };
-    }
-
-    on(el, 'mousedown', function(ev) {
-      if (!self.mouseEvents) return;
-
-      // send the button
-      sendButton(ev);
-
-      // ensure focus
-      self.focus();
-
-      // bind events
-      on(document, 'mousemove', sendMove);
-      on(document, 'mouseup', function up(ev) {
-        sendButton(ev);
-        off(document, 'mousemove', sendMove);
-        off(document, 'mouseup', up);
-        return cancel(ev);
-      });
-
-      return cancel(ev);
-    });
-
-    on(el, wheelEvent, function(ev) {
-      if (!self.mouseEvents) return;
-      sendButton(ev);
-      return cancel(ev);
-    });
-
-    // allow mousewheel scrolling in
-    // the shell for example
-    on(el, wheelEvent, function(ev) {
-      if (self.mouseEvents) return;
-      if (self.applicationKeypad) return;
-      if (ev.type === 'DOMMouseScroll') {
-        self.scrollDisp(ev.detail < 0 ? -5 : 5);
-      } else {
-        self.scrollDisp(ev.wheelDeltaY > 0 ? -5 : 5);
-      }
-      return cancel(ev);
-    });
   };
 
   /**
@@ -472,11 +174,6 @@
     , parent;
 
     width = this.cols;
-
-    if (end - start === this.rows - 1) {
-      parent = this.element.parentNode;
-      if (parent) parent.removeChild(this.element);
-    }
 
     for (y = start; y <= end; y++) {
       row = y + this.ydisp;
@@ -571,11 +268,7 @@
       if (attr !== this.defAttr) {
         out += '</span>';
       }
-
-      this.children[y].innerHTML = out;
     }
-
-    if (parent) parent.appendChild(this.element);
   };
 
   Terminal.prototype.cursorBlink = function() {
@@ -1355,272 +1048,8 @@
     }
   };
 
-  Terminal.prototype.writeln = function(str) {
-    this.write(str + '\r\n');
-  };
-
-  Terminal.prototype.keyDownHandler = function(ev) {
-    var str = '';
-    switch (ev.keyCode) {
-      // backspace
-    case 8:
-      str = '\x7f'; // ^?
-      //str = '\x08'; // ^H
-      break;
-      // tab
-    case 9:
-      str = '\t';
-      break;
-      // return/enter
-    case 13:
-      str = '\r';
-      break;
-      // escape
-    case 27:
-      str = '\x1b';
-      break;
-      // left-arrow
-    case 37:
-      if (this.applicationKeypad) {
-        str = '\x1bOD'; // SS3 as ^[O for 7-bit
-        //str = '\x8fD'; // SS3 as 0x8f for 8-bit
-        break;
-      }
-      str = '\x1b[D';
-      break;
-      // right-arrow
-    case 39:
-      if (this.applicationKeypad) {
-        str = '\x1bOC';
-        break;
-      }
-      str = '\x1b[C';
-      break;
-      // up-arrow
-    case 38:
-      if (this.applicationKeypad) {
-        str = '\x1bOA';
-        break;
-      }
-      if (ev.ctrlKey) {
-        this.scrollDisp(-1);
-        return cancel(ev);
-      } else {
-        str = '\x1b[A';
-      }
-      break;
-      // down-arrow
-    case 40:
-      if (this.applicationKeypad) {
-        str = '\x1bOB';
-        break;
-      }
-      if (ev.ctrlKey) {
-        this.scrollDisp(1);
-        return cancel(ev);
-      } else {
-        str = '\x1b[B';
-      }
-      break;
-      // delete
-    case 46:
-      str = '\x1b[3~';
-      break;
-      // insert
-    case 45:
-      str = '\x1b[2~';
-      break;
-      // home
-    case 36:
-      if (this.applicationKeypad) {
-        str = '\x1bOH';
-        break;
-      }
-      str = '\x1bOH';
-      break;
-      // end
-    case 35:
-      if (this.applicationKeypad) {
-        str = '\x1bOF';
-        break;
-      }
-      str = '\x1bOF';
-      break;
-      // page up
-    case 33:
-      if (ev.shiftKey) {
-        this.scrollDisp(-(this.rows - 1));
-        return cancel(ev);
-      } else {
-        str = '\x1b[5~';
-      }
-      break;
-      // page down
-    case 34:
-      if (ev.shiftKey) {
-        this.scrollDisp(this.rows - 1);
-        return cancel(ev);
-      } else {
-        str = '\x1b[6~';
-      }
-      break;
-      // F1
-    case 112:
-      str = '\x1bOP';
-      break;
-      // F2
-    case 113:
-      str = '\x1bOQ';
-      break;
-      // F3
-    case 114:
-      str = '\x1bOR';
-      break;
-      // F4
-    case 115:
-      str = '\x1bOS';
-      break;
-      // F5
-    case 116:
-      str = '\x1b[15~';
-      break;
-      // F6
-    case 117:
-      str = '\x1b[17~';
-      break;
-      // F7
-    case 118:
-      str = '\x1b[18~';
-      break;
-      // F8
-    case 119:
-      str = '\x1b[19~';
-      break;
-      // F9
-    case 120:
-      str = '\x1b[20~';
-      break;
-      // F10
-    case 121:
-      str = '\x1b[21~';
-      break;
-      // F11
-    case 122:
-      str = '\x1b[23~';
-      break;
-      // F12
-    case 123:
-      str = '\x1b[24~';
-      break;
-    default:
-      // a-z and space
-      if (ev.ctrlKey) {
-        if (ev.keyCode >= 65 && ev.keyCode <= 90) {
-          str = String.fromCharCode(ev.keyCode - 64);
-        } else if (ev.keyCode === 32) {
-          // NUL
-          str = String.fromCharCode(0);
-        } else if (ev.keyCode >= 51 && ev.keyCode <= 55) {
-          // escape, file sep, group sep, record sep, unit sep
-          str = String.fromCharCode(ev.keyCode - 51 + 27);
-        } else if (ev.keyCode === 56) {
-          // delete
-          str = String.fromCharCode(127);
-        } else if (ev.keyCode === 219) {
-          // ^[ - escape
-          str = String.fromCharCode(27);
-        } else if (ev.keyCode === 221) {
-          // ^] - group sep
-          str = String.fromCharCode(29);
-        }
-      } else if ((!isMac && ev.altKey) || (isMac && ev.metaKey)) {
-        if (ev.keyCode >= 65 && ev.keyCode <= 90) {
-          str = '\x1b' + String.fromCharCode(ev.keyCode + 32);
-        } else if (ev.keyCode >= 48 && ev.keyCode <= 57) {
-          str = '\x1b' + (ev.keyCode - 48);
-        }
-      }
-      break;
-    }
-
-    if (str) {
-      cancel(ev);
-
-      this.showCursor();
-      this.keyState = 1;
-      this.keyStr = str;
-      this.handler(str);
-
-      return false;
-    } else {
-      this.keyState = 0;
-      return true;
-    }
-  };
-
-  Terminal.prototype.keyPressHandler = function(ev) {
-    var str = ''
-    , key;
-
-    cancel(ev);
-
-    if (!('charCode' in ev)) {
-      key = ev.keyCode;
-      if (this.keyState === 1) {
-        this.keyState = 2;
-        return false;
-      } else if (this.keyState === 2) {
-        this.showCursor();
-        this.handler(this.keyStr);
-        return false;
-      }
-    } else {
-      key = ev.charCode;
-    }
-
-    if (key !== 0) {
-      if (!ev.ctrlKey
-          && ((!isMac && !ev.altKey)
-              || (isMac && !ev.metaKey))) {
-        str = String.fromCharCode(key);
-      }
-    }
-
-    if (str) {
-      this.showCursor();
-      this.handler(str);
-      return false;
-    } else {
-      return true;
-    }
-  };
-
-  Terminal.prototype.queueChars = function(str) {
-    var self = this;
-
-    this.outputQueue += str;
-
-    if (this.outputQueue) {
-      setTimeout(function() {
-        self.outputHandler();
-      }, 1);
-    }
-  };
-
-  Terminal.prototype.outputHandler = function() {
-    if (this.outputQueue) {
-      this.handler(this.outputQueue);
-      this.outputQueue = '';
-    }
-  };
-
   Terminal.prototype.bell = function() {
     if (!Terminal.visualBell) return;
-    var self = this;
-    this.element.style.borderColor = 'white';
-    setTimeout(function() {
-      self.element.style.borderColor = '';
-    }, 10);
     if (Terminal.popOnBell) this.focus();
   };
 
@@ -1655,26 +1084,15 @@
     // resize rows
     j = this.rows;
     if (j < y) {
-      el = this.element;
       while (j++ < y) {
         if (this.lines.length < y + this.ybase) {
           this.lines.push(this.blankLine());
-        }
-        if (this.children.length < y) {
-          line = document.createElement('div');
-          el.appendChild(line);
-          this.children.push(line);
         }
       }
     } else if (j > y) {
       while (j-- > y) {
         if (this.lines.length > y + this.ybase) {
           this.lines.pop();
-        }
-        if (this.children.length > y) {
-          el = this.children.pop();
-          if (!el) continue;
-          el.parentNode.removeChild(el);
         }
       }
     }
@@ -2488,9 +1906,7 @@
       case 1003: // any event mouse
         // button press, release, wheel, and motion.
         // no modifiers except control.
-        console.log('binding to mouse events - warning: experimental!');
         this.mouseEvents = true;
-        this.element.style.cursor = 'default';
         break;
       case 1004: // send focusin/focusout events
         // focusin: ^[[>I
@@ -2652,7 +2068,6 @@
       case 1004:
       case 1005:
         this.mouseEvents = false;
-        this.element.style.cursor = '';
         break;
       case 25: // hide cursor
         this.cursorHidden = true;
@@ -2754,14 +2169,6 @@
     }
     this.refreshStart = 0;
     this.refreshEnd = this.rows - 1;
-  };
-
-  // CSI Ps ; Ps ; Ps ; Ps ; Ps T
-  //   Initiate highlight mouse tracking.  Parameters are
-  //   [func;startx;starty;firstrow;lastrow].  See the section Mouse
-  //   Tracking.
-  Terminal.prototype.initMouseTracking = function(params) {
-    console.log('mouse tracking');
   };
 
   // CSI > Ps; Ps T
@@ -3324,21 +2731,6 @@
     if (ev.stopPropagation) ev.stopPropagation();
     ev.cancelBubble = true;
     return false;
-  }
-
-  var isMac = ~navigator.userAgent.indexOf('Mac');
-
-  // if bold is broken, we can't
-  // use it in the terminal.
-  function isBoldBroken() {
-    var el = document.createElement('span');
-    el.innerHTML = 'hello world';
-    document.body.appendChild(el);
-    var w1 = el.scrollWidth;
-    el.style.fontWeight = 'bold';
-    var w2 = el.scrollWidth;
-    document.body.removeChild(el);
-    return w1 !== w2;
   }
 
   /**
