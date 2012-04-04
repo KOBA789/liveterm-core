@@ -2,7 +2,7 @@ var tty = require('tty'),
     pty = require('pty.js');
 
 var term = pty.spawn(process.env.SHELL, [], {
-  name: 'xterm-color',
+  name: 'xterm',
   cols: 80,
   rows: 30,
   cwd: process.env.HOME
