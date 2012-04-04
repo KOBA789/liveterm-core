@@ -9,7 +9,8 @@
   "dependencies": {
     "pty.js": "*",
     "router-line": "*",
-    "socket.io": "*"
+    "socket.io": "*",
+    "node-static": "*"
   },
   "devDependencies": {
     "should": "*",
