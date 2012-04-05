@@ -9,7 +9,12 @@ module.exports = (function () {
   util.inherits(MasterTerminal, Terminal);
 
   MasterTerminal.prototype.snapshot = function () {
-    return this;
+    var result = {};
+    var copyProps = ['cols', 'rows', 'scrollback', 'ybase', 'ydisp', 'x', 'y', 'cursorState', 'cursorHidden', 'convertEol', 'state', 'outputQueue', 'scrollTop', 'scrollBottom', 'applicationKeypad', 'originMode', 'insertMode', 'wraparoundMode', 'tabs', 'charset', 'normal', 'bgColors', 'fgColors', 'defAttr', 'curAttr', 'keyState', 'keyStr', 'params', 'currentParam', 'lines'];
+    for (var i = 0; i < copyProps.length; ++ i) {
+      result[copyProps[i]] = this[copyProps[i]];
+    }
+    return result;
   };
 
   return MasterTerminal;
