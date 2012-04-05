@@ -1,12 +1,14 @@
 var tty = require('tty'),
-    pty = require('pty.js');
+    pty = require('pty.js'),
+    io = require('socket.io-client');
 
-var term = pty.spawn(process.env.SHELL, [], {
-  name: 'xterm',
-  cols: 80,
-  rows: 30,
-  cwd: process.env.HOME
-});
+var socket = io.connect('http://localhost:8124'),
+    term = pty.spawn(process.env.SHELL, [], {
+      name: 'xterm',
+      cols: 80,
+      rows: 30,
+      cwd: process.env.HOME
+    });
 
 /*
 term.on('data', function(data) {
@@ -19,6 +21,10 @@ tty.setRawMode(true);
 
 term.pipe(process.stdout);
 process.stdin.pipe(term);
+
+term.on('data', function (data) {
+  socket.emit('data', data);
+});
 
 term.on('exit', function () {
   process.exit();

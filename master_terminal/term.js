@@ -44,10 +44,9 @@
    * Terminal
    */
 
-  var Terminal = function(cols, rows, handler) {
+  var Terminal = function(cols, rows) {
     this.cols = cols;
     this.rows = rows;
-    this.handler = handler;
     this.ybase = 0;
     this.ydisp = 0;
     this.x = 0;
@@ -1192,7 +1191,7 @@
 
   // ESC c Full Reset (RIS).
   Terminal.prototype.reset = function() {
-    Terminal.call(this, this.cols, this.rows, this.handler);
+    Terminal.call(this, this.cols, this.rows);
   };
 
   /**
@@ -2716,14 +2715,6 @@
   /**
    * Helpers
    */
-
-  function on(el, type, handler, capture) {
-    el.addEventListener(type, handler, capture || false);
-  }
-
-  function off(el, type, handler, capture) {
-    el.removeEventListener(type, handler, capture || false);
-  }
 
   function cancel(ev) {
     if (ev.preventDefault) ev.preventDefault();

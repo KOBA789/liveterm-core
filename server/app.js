@@ -1,12 +1,13 @@
 var http = require('http'),
     url = require('url'),
+    path = require('path'),
     EventEmitter = require('events').EventEmitter;
 
 var router = new (require('router-line').Router),
     socketio = require('socket.io'),
-    fileServer = new(require('node-static').Server)('../static');
+    fileServer = new(require('node-static').Server)(path.join(process.cwd(), '/../browser'));
 
-var hub = new (require('../hub')),
+var mterm = new (require('../master_terminal'))(80, 30),
     app,
     io,
     handlers = {};
@@ -33,7 +34,7 @@ function Helper(req, res, params) {
 
 app = http.createServer(function (req, res) {
   var reqUrl = url.parse(req.url);
-  var target = router.router(req.method.toUpperCase(),
+  var target = router.route(req.method.toUpperCase(),
                              reqUrl.pathname);
   if (target === undefined) {
     req.on('end', function () {
@@ -48,9 +49,12 @@ app = http.createServer(function (req, res) {
 io = socketio.listen(app);
 
 io.sockets.on('connection', function (socket) {
-  socket.emit('snapshot', hub.snapshot());
-  socket.on('data', function () {
-    socket.emit('data');
+  socket.on('create', function () {
+    socket.emit('snapshot', mterm.snapshot());
+  });
+  socket.on('data', function (data) {
+    mterm.write(data);
+    socket.broadcast.emit('input', data);
   });
 });
 
