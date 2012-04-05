@@ -152,7 +152,8 @@ Terminal.prototype.refresh = function(start, end) {
     , defAttr
     , fgColor
     , bgColor
-    , row;
+    , row
+    , isInverse;
 
   for (y = start; y <= end; y++) {
     row = y + this.ydisp;
@@ -189,14 +190,19 @@ Terminal.prototype.refresh = function(start, end) {
             out += '<span style="';
             fgColor = (data >> 3) & 7;
             bgColor = data & 7;
-            if (fgColor !== 7) {
+            isInverse = (data >> 8) & 8;
+            if (fgColor !== 7 || isInverse) {
               out += 'color:'
-                + this.fgColors[fgColor]
+                + (!isInverse
+                   ? this.fgColors[fgColor]
+                   : this.bgColors[bgColor])
                 + ';';
             }
-            if (bgColor !== 0) {
+            if (bgColor !== 0 || isInverse) {
               out += 'background-color:'
-                + this.bgColors[bgColor]
+                + (isInverse
+                   ? this.fgColors[fgColor]
+                   : this.bgColors[bgColor])
                 + ';';
             }
             if ((data >> 8) & 1) {
@@ -1642,12 +1648,18 @@ Terminal.prototype.charAttributes = function(params) {
       } else if (p === 4) {
         // underlined text
         this.curAttr = this.curAttr | (4 << 8);
+      } else if (p === 7) {
+        // inverse text
+        this.curAttr = this.curAttr | (8 << 8);
       } else if (p === 22) {
         // not bold
         this.curAttr = this.curAttr & ~(1 << 8);
       } else if (p === 24) {
         // not underlined
         this.curAttr = this.curAttr & ~(4 << 8);
+      } else if (p === 27) {
+        // not inverse text
+        this.curAttr = this.curAttr & ~(8 << 8);
       } else if (p === 39) {
         // reset fg
         p = this.curAttr & 7;

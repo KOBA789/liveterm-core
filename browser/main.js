@@ -17,4 +17,5 @@ socket.on('snapshot', function (data) {
   for (var prop in data) {
     term[prop] = data[prop];
   }
+  term.refresh(0, 29);
 });

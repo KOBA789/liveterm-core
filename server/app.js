@@ -12,6 +12,8 @@ var mterm = new (require('../master_terminal'))(80, 30),
     io,
     handlers = {};
 
+mterm.open();
+
 function isObject(obj) {
   return typeof obj === 'object' && obj !== null;
 }
