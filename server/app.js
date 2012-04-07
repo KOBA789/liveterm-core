@@ -10,16 +10,19 @@ var router = new (require('router-line').Router),
 var mterm = new (require('../master_terminal'))(80, 30),
     app,
     io,
+    viewers = 0,
     controllers = {};
 
 controllers.top = require('./controllers/top');
 controllers.channels = require('./controllers/channels');
 
 // routes
+/*
 router.GET('/', {
   controller: controllers.top,
   action: 'index'
 });
+*/
 router.GET('/about', {
   controller: controllers.top,
   action: 'about'
@@ -78,13 +81,23 @@ io.configure(function () {
 });
 
 io.sockets.on('connection', function (socket) {
+  function counter () {
+    io.sockets.emit('counter', viewers);
+  }
+
   socket.on('create', function () {
+    viewers ++;
+    counter();
     socket.emit('snapshot', mterm.snapshot());
   });
   socket.on('data', function (data) {
     mterm.write(data);
     socket.broadcast.emit('input', data);
   });
+  socket.on('disconnect', function () {
+    viewers --;
+    counter();
+  });
 });
 
-app.listen(8124);
+app.listen(process.env.PORT || 80);
