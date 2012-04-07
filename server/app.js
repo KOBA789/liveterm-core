@@ -85,9 +85,10 @@ io.sockets.on('connection', function (socket) {
     io.sockets.emit('counter', viewers);
   }
 
+  viewers ++;
+  counter();
+
   socket.on('create', function () {
-    viewers ++;
-    counter();
     socket.emit('snapshot', mterm.snapshot());
   });
   socket.on('data', function (data) {
