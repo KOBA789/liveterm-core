@@ -5,34 +5,54 @@ var http = require('http'),
 
 var router = new (require('router-line').Router),
     socketio = require('socket.io'),
-    fileServer = new(require('node-static').Server)(path.join(process.cwd(), '/../browser'));
+    fileServer = new(require('node-static').Server)(path.join(__dirname, '/../browser'));
 
 var mterm = new (require('../master_terminal'))(80, 30),
     app,
     io,
-    handlers = {};
-
-mterm.open();
+    controllers;
 
 function isObject(obj) {
   return typeof obj === 'object' && obj !== null;
 }
 
+// routes
+router.GET('/', {
+  controller: controllers.top,
+  action: 'index'
+});
+router.GET('/about', {
+  controller: controllers.top,
+  action: 'about'
+});
+
 /*
- * Routing Table
+router.GET('/auth/:provider', {
+  controller: controllers.auth,
+  action: 'show'
+});
+router.GET('/auth/:provider/callback', {
+  controller: controllers.auth,
+  action: 'create'
+});
  */
 
-function Helper(req, res, params) {
-  this.request = req;
-  this.response = res;
-  this.params = params;
-  var parsedUrl = url.parse(this.request.url, true);
-  if (isObject(parsedUrl) && isObject(parsedUrl.query)) {
-    for (var key in parsedUrl.query) {
-      this.params[key] = parsedUrl.query[key];
-    }
-  }
-}
+router.GET('/channels', {
+  controller: controllers.terms,
+  action: 'index'
+});
+router.POST('/channels', {
+  controller: controllers.terms,
+  action: 'create'
+});
+router.GET('/channels/new', {
+  controller: controllers.terms,
+  action: 'new'
+});
+router.GET('/channels/:id', {
+  controller: controllers.terms,
+  action: 'show'
+});
 
 app = http.createServer(function (req, res) {
   var reqUrl = url.parse(req.url);
@@ -43,10 +63,14 @@ app = http.createServer(function (req, res) {
       fileServer.serve(req, res);
     });
   } else {
-    var handler = new Helper(req, res, target.params);
-    target.value.call(handler);
+    var Controller = target.value.controller;
+    var action = target.value.action;
+    var controller = new Controller(req, res, target.params);
+    controller[action]();
   }
 });
+
+mterm.open();
 
 io = socketio.listen(app);
 
