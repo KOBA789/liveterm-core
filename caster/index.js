@@ -2,7 +2,8 @@ var tty = require('tty'),
     pty = require('pty.js'),
     io = require('socket.io-client');
 
-var socket = io.connect('http://localhost:8124'),
+var url = process.env.DEVELOP ? 'http://localhost:8124' : 'http://pronama14.koba789.com',
+    socket = io.connect(url),
     term = pty.spawn(process.env.SHELL, [], {
       name: 'xterm',
       cols: 80,
@@ -15,7 +16,6 @@ term.on('data', function(data) {
   console.log(data);
 });
 */
-
 process.stdin.resume();
 tty.setRawMode(true);
 

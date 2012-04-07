@@ -10,11 +10,10 @@ var router = new (require('router-line').Router),
 var mterm = new (require('../master_terminal'))(80, 30),
     app,
     io,
-    controllers;
+    controllers = {};
 
-function isObject(obj) {
-  return typeof obj === 'object' && obj !== null;
-}
+controllers.top = require('./controllers/top');
+controllers.channels = require('./controllers/channels');
 
 // routes
 router.GET('/', {
@@ -38,26 +37,26 @@ router.GET('/auth/:provider/callback', {
  */
 
 router.GET('/channels', {
-  controller: controllers.terms,
+  controller: controllers.channels,
   action: 'index'
 });
 router.POST('/channels', {
-  controller: controllers.terms,
+  controller: controllers.channels,
   action: 'create'
 });
 router.GET('/channels/new', {
-  controller: controllers.terms,
+  controller: controllers.channels,
   action: 'new'
 });
 router.GET('/channels/:id', {
-  controller: controllers.terms,
+  controller: controllers.channels,
   action: 'show'
 });
 
 app = http.createServer(function (req, res) {
   var reqUrl = url.parse(req.url);
   var target = router.route(req.method.toUpperCase(),
-                             reqUrl.pathname);
+                            reqUrl.pathname);
   if (target === undefined) {
     req.on('end', function () {
       fileServer.serve(req, res);
@@ -73,6 +72,10 @@ app = http.createServer(function (req, res) {
 mterm.open();
 
 io = socketio.listen(app);
+
+io.configure(function () {
+  io.disable('log');
+});
 
 io.sockets.on('connection', function (socket) {
   socket.on('create', function () {

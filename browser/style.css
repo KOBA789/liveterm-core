@@ -18,9 +18,21 @@ html {
   background: #fff;
 }
 
+#display {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+}
+
+.terminal {
+  position: absolute;
+  border: white 1px solid;
+  box-shadow: 0px 0px 10px #000;
+}
+
 .term {
   font-family: "DejaVu Sans Mono", monospace;
-  font-size: 11px;
+  font-size: 11pt;
   color: #f0f0f0;
   background: #000;
 }

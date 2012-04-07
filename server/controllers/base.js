@@ -1,3 +1,9 @@
+var url = require('url');
+
+function isObject(obj) {
+  return typeof obj === 'object' && obj !== null;
+}
+
 module.exports = (function () {
   function BaseController(req, res, params) {
     this.request = req;

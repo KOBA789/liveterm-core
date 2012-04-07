@@ -128,7 +128,8 @@ Terminal.prototype.open = function() {
     this.children.push(div);
   }
 
-  document.body.appendChild(this.element);
+  var display = document.getElementById('display');
+  display.appendChild(this.element);
 
   this.refresh(0, this.rows - 1);
 
