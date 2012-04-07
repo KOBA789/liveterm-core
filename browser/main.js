@@ -10,6 +10,12 @@ window.onload = function () {
     socket.emit('create');
   });
 
+  var counter = document.getElementById('counter');
+
+  socket.on('counter', function (num) {
+    counter.innerText = num;
+  });
+
   socket.on('input', function (data) {
     term.write(data);
   });
