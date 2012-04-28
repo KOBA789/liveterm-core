@@ -12,7 +12,8 @@
     "socket.io": "*",
     "node-static": "*",
     "jsdom": "*",
-    "hogan.js": "*"
+    "hogan.js": "*",
+    "sokcet.io-client": "*"
   },
   "devDependencies": {
     "should": "*",
