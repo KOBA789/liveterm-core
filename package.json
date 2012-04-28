@@ -13,7 +13,7 @@
     "node-static": "*",
     "jsdom": "*",
     "hogan.js": "*",
-    "sokcet.io-client": "*"
+    "socket.io-client": "*"
   },
   "devDependencies": {
     "should": "*",
